@@ -1,0 +1,245 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  CLIENT
+  LAWYER
+  ADMIN
+}
+
+enum SlotStatus {
+  OPEN
+  BOOKED
+  BLOCKED
+}
+
+enum BookingStatus {
+  BOOKED
+  CANCELED
+  COMPLETED
+}
+
+enum WalletTransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  BOOKING_PAYMENT
+  BOOKING_REFUND
+  SERVICE_PAYOUT
+}
+
+enum WalletTransactionStatus {
+  PENDING
+  COMPLETED
+  CANCELED
+  FAILED
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  emailVerified DateTime? 
+  passwordHash  String?
+  role          UserRole  @default(CLIENT)
+  balance       Decimal   @default(0) @db.Decimal(12, 2)
+  bio           String?
+  image         String?
+
+  lawyerServices     Service[]           @relation("LawyerServices")
+  clientBookings     Booking[]           @relation("ClientBookings")
+  lawyerSlots        Slot[]              @relation("LawyerSlots")
+  ratingsLeft        Rating[]            @relation("RatingsLeft")
+  walletTransactions WalletTransaction[]
+
+  accounts Account[]
+  sessions Session[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([role])
+}
+
+model Category {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  description String
+  imageUrl    String?
+
+  services Service[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Service {
+  id          String  @id @default(cuid())
+  title       String
+  description String
+  price       Decimal @db.Decimal(10, 2)
+
+  // soft delete: юрист "удаляет" услугу, но строка остается
+  deletedAt DateTime?
+
+  lawyerId String
+  lawyer   User   @relation("LawyerServices", fields: [lawyerId], references: [id], onDelete: Cascade)
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  bookings Booking[] @relation("ServiceBookings")
+  ratings  Rating[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([lawyerId, deletedAt])
+  @@index([categoryId, deletedAt])
+}
+
+model Slot {
+  id String @id @default(cuid())
+
+  // слот принадлежит юристу, а не конкретной услуге
+  lawyerId String
+  lawyer   User   @relation("LawyerSlots", fields: [lawyerId], references: [id], onDelete: Cascade)
+
+  startAt DateTime
+  endAt   DateTime
+  status  SlotStatus @default(OPEN)
+
+  booking Booking?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([lawyerId, startAt, endAt])
+  @@index([lawyerId, status, startAt])
+}
+
+model Booking {
+  id String @id @default(cuid())
+
+  clientId String
+  client   User   @relation("ClientBookings", fields: [clientId], references: [id], onDelete: Restrict)
+
+  serviceId String
+  service   Service @relation("ServiceBookings", fields: [serviceId], references: [id], onDelete: Restrict)
+
+  slotId String @unique
+  slot   Slot   @relation(fields: [slotId], references: [id], onDelete: Restrict)
+
+  status BookingStatus @default(BOOKED)
+
+  cancellationReason String?
+  cancelledAt        DateTime?
+  completedAt        DateTime?
+  lateCancellation   Boolean   @default(false)
+
+  // snapshot-данные, чтобы история жила даже если услуга скрыта/удалена
+  paidAmount           Decimal  @db.Decimal(10, 2)
+  serviceTitleSnapshot String
+  lawyerNameSnapshot   String
+  categoryNameSnapshot String?
+  slotStartSnapshot    DateTime
+  slotEndSnapshot      DateTime
+
+  rating             Rating?
+  walletTransactions WalletTransaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId, status])
+  @@index([serviceId, status])
+  @@index([slotStartSnapshot, status])
+}
+
+model Rating {
+  id String @id @default(cuid())
+
+  // один отзыв на одно бронирование
+  bookingId String  @unique
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  clientId String
+  client   User   @relation("RatingsLeft", fields: [clientId], references: [id], onDelete: Restrict)
+
+  serviceId String
+  service   Service @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+
+  value   Int
+  comment String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([serviceId])
+}
+
+model WalletTransaction {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  bookingId String?
+  booking   Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+
+  type   WalletTransactionType
+  status WalletTransactionStatus @default(COMPLETED)
+
+  amount      Decimal @db.Decimal(12, 2)
+  description String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([bookingId])
+}
+
+//
+// Auth.js models
+//
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}

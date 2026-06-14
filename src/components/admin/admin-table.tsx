@@ -19,7 +19,6 @@ import {
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -151,8 +150,6 @@ export function AdminTable({
     }
   };
 
-  // В компоненте AdminTable, заменить handleDelete:
-
   const handleDelete = async () => {
     if (!deleteId) return;
     setDeleting(true);
@@ -162,13 +159,11 @@ export function AdminTable({
       const json = await res.json();
 
       if (!res.ok) {
-        // Не закрываем диалог здесь — покажем ошибку в самом диалоге
         setError(json.error || "Ошибка архивации");
         setDeleting(false);
         return;
       }
 
-      // Успех — закрываем и показываем toast
       setDeleteId(null);
       setError("");
       toast.success("Запись архивирована");
@@ -246,7 +241,7 @@ export function AdminTable({
           {renderField(field)}
         </div>
       ))}
-      <div className="flex justify-end gap-2 pt-2">
+      <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
         <Button
           variant="outline"
           onClick={() => {
@@ -266,14 +261,65 @@ export function AdminTable({
     </div>
   );
 
+  // Карточка для мобильного отображения
+  const renderMobileCard = (row: any) => (
+    <div
+      key={row.id}
+      className="rounded-xl border bg-white p-4 shadow-sm space-y-2"
+    >
+      {columns.map((col) => (
+        <div
+          key={col.key}
+          className="flex items-start justify-between gap-3 border-b border-slate-100 pb-2 last:border-0 last:pb-0"
+        >
+          <span className="text-xs font-medium text-slate-500 shrink-0">
+            {col.label}
+          </span>
+          <span className="text-sm text-right text-slate-900 break-words min-w-0">
+            {col.render
+              ? col.render(row[col.key], row)
+              : (row[col.key]?.toString() ?? "—")}
+          </span>
+        </div>
+      ))}
+
+      {(canEdit || canDelete) && (
+        <div className="flex gap-2 pt-2">
+          {canEdit && fields.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 gap-2"
+              onClick={() => handleEdit(row)}
+            >
+              <Pencil className="size-4" />
+              Редактировать
+            </Button>
+          )}
+          {canDelete && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 gap-2 border-amber-200 text-amber-600 hover:bg-amber-50 hover:text-amber-700"
+              onClick={() => setDeleteId(row.id)}
+            >
+              <Archive className="size-4" />
+              Архив
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{title}</h1>
+      <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-xl font-bold sm:text-2xl">{title}</h1>
         {canCreate && fields.length > 0 && (
           <Button
             onClick={handleCreate}
-            className="gap-2 bg-[#1E2A44] hover:bg-[#162033]"
+            className="gap-2 bg-[#1E2A44] hover:bg-[#162033] w-full sm:w-auto"
           >
             <Plus className="size-4" />
             Добавить
@@ -281,7 +327,7 @@ export function AdminTable({
         )}
       </div>
 
-      <div className="mb-4 max-w-sm">
+      <div className="mb-4 sm:max-w-sm">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
           <Input
@@ -293,7 +339,8 @@ export function AdminTable({
         </div>
       </div>
 
-      <div className="rounded-xl border bg-white shadow-sm">
+      {/* DESKTOP TABLE — скрыта на мобилке */}
+      <div className="hidden md:block rounded-xl border bg-white shadow-sm overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -368,12 +415,25 @@ export function AdminTable({
         </Table>
       </div>
 
+      {/* MOBILE CARDS — показаны только на мобилке */}
+      <div className="md:hidden space-y-3">
+        {loading ? (
+          <div className="py-8 text-center text-slate-500">Загрузка...</div>
+        ) : data.length === 0 ? (
+          <div className="py-8 text-center text-slate-500 rounded-xl border bg-white">
+            Нет данных
+          </div>
+        ) : (
+          data.map((row) => renderMobileCard(row))
+        )}
+      </div>
+
       {/* EDIT DIALOG */}
       <Dialog
         open={editItem !== null}
         onOpenChange={(open) => !open && setEditItem(null)}
       >
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg w-[calc(100%-2rem)] sm:w-full">
           <DialogHeader>
             <DialogTitle>Редактирование</DialogTitle>
           </DialogHeader>
@@ -383,7 +443,7 @@ export function AdminTable({
 
       {/* CREATE DIALOG */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg w-[calc(100%-2rem)] sm:w-full">
           <DialogHeader>
             <DialogTitle>Добавление</DialogTitle>
           </DialogHeader>
@@ -401,7 +461,7 @@ export function AdminTable({
           }
         }}
       >
-        <AlertDialogContent>
+        <AlertDialogContent className="w-[calc(100%-2rem)] sm:w-full">
           <AlertDialogHeader>
             <AlertDialogTitle>{deleteLabel}</AlertDialogTitle>
             <AlertDialogDescription>{deleteDescription}</AlertDialogDescription>
@@ -411,8 +471,10 @@ export function AdminTable({
               </div>
             )}
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Отмена</AlertDialogCancel>
+          <AlertDialogFooter className="flex-col-reverse gap-2 sm:flex-row">
+            <AlertDialogCancel disabled={deleting} className="mt-0">
+              Отмена
+            </AlertDialogCancel>
             <Button
               onClick={handleDelete}
               disabled={deleting}

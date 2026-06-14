@@ -46,15 +46,15 @@ export function DeleteButton({
           <Trash2 className="size-4" />
         </Button>
       </AlertDialogTrigger>
-      <AlertDialogContent>
+      <AlertDialogContent className="w-[calc(100%-2rem)] sm:w-full">
         <AlertDialogHeader>
           <AlertDialogTitle>Удалить {entityName}?</AlertDialogTitle>
           <AlertDialogDescription>
             Это действие нельзя отменить. {entityName} будет удалена навсегда.
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Отмена</AlertDialogCancel>
+        <AlertDialogFooter className="flex-col-reverse gap-2 sm:flex-row">
+          <AlertDialogCancel className="mt-0">Отмена</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleDelete}
             disabled={loading}

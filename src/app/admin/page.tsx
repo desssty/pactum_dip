@@ -47,20 +47,24 @@ export default async function AdminPage() {
 
   return (
     <div>
-      <h1 className="mb-8 text-2xl font-bold">Обзор системы</h1>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <h1 className="mb-6 text-xl font-bold sm:mb-8 sm:text-2xl">
+        Обзор системы
+      </h1>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
         {cards.map((card) => (
           <div
             key={card.label}
-            className="rounded-xl border bg-white p-6 shadow-sm"
+            className="rounded-xl border bg-white p-4 shadow-sm sm:p-6"
           >
             <div className="flex items-center gap-3">
-              <div className="flex size-10 items-center justify-center rounded-lg bg-[#1E2A44]/10 text-[#1E2A44]">
-                <card.icon className="size-5" />
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#1E2A44]/10 text-[#1E2A44] sm:size-12">
+                <card.icon className="size-5 sm:size-6" />
               </div>
-              <div>
-                <p className="text-2xl font-bold">{card.value}</p>
-                <p className="text-sm text-slate-500">{card.label}</p>
+              <div className="min-w-0">
+                <p className="text-xl font-bold sm:text-2xl">{card.value}</p>
+                <p className="truncate text-xs text-slate-500 sm:text-sm">
+                  {card.label}
+                </p>
               </div>
             </div>
           </div>

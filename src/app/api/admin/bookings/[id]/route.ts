@@ -18,9 +18,60 @@ export async function PUT(
   const { id } = await params;
   const body = await req.json();
 
+  const {
+    status,
+    cancellationReason,
+    paidAmount,
+    serviceTitleSnapshot,
+    lawyerNameSnapshot,
+    categoryNameSnapshot,
+    slotStartSnapshot,
+    slotEndSnapshot,
+    lateCancellation,
+  } = body;
+
+  const existing = await prisma.booking.findUnique({
+    where: { id },
+  });
+
+  if (!existing) {
+    return NextResponse.json(
+      { error: "Бронирование не найдено" },
+      { status: 404 },
+    );
+  }
+
+  const updateData: Record<string, unknown> = {};
+
+  if (status) updateData.status = status;
+  if (cancellationReason !== undefined)
+    updateData.cancellationReason = cancellationReason || null;
+  if (paidAmount !== undefined && paidAmount !== "")
+    updateData.paidAmount = Number(paidAmount);
+  if (serviceTitleSnapshot !== undefined)
+    updateData.serviceTitleSnapshot = serviceTitleSnapshot;
+  if (lawyerNameSnapshot !== undefined)
+    updateData.lawyerNameSnapshot = lawyerNameSnapshot;
+  if (categoryNameSnapshot !== undefined)
+    updateData.categoryNameSnapshot = categoryNameSnapshot || null;
+  if (slotStartSnapshot)
+    updateData.slotStartSnapshot = new Date(slotStartSnapshot);
+  if (slotEndSnapshot) updateData.slotEndSnapshot = new Date(slotEndSnapshot);
+  if (lateCancellation !== undefined)
+    updateData.lateCancellation =
+      lateCancellation === "true" || lateCancellation === true;
+
+  // Авто-проставление дат при смене статуса
+  if (status === "CANCELED" && existing.status !== "CANCELED") {
+    updateData.cancelledAt = new Date();
+  }
+  if (status === "COMPLETED" && existing.status !== "COMPLETED") {
+    updateData.completedAt = new Date();
+  }
+
   const booking = await prisma.booking.update({
     where: { id },
-    data: body,
+    data: updateData,
   });
 
   return NextResponse.json(booking);

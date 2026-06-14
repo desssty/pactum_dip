@@ -57,7 +57,47 @@ const fields: FieldConfig[] = [
       { value: "COMPLETED", label: "Завершён" },
     ],
   },
-  { key: "cancellationReason", label: "Причина отмены", type: "textarea" },
+  {
+    key: "paidAmount",
+    label: "Сумма (₽)",
+    type: "number",
+  },
+  {
+    key: "serviceTitleSnapshot",
+    label: "Название услуги (snapshot)",
+  },
+  {
+    key: "lawyerNameSnapshot",
+    label: "Имя юриста (snapshot)",
+  },
+  {
+    key: "categoryNameSnapshot",
+    label: "Категория (snapshot)",
+  },
+  {
+    key: "slotStartSnapshot",
+    label: "Начало слота",
+    type: "datetime-local",
+  },
+  {
+    key: "slotEndSnapshot",
+    label: "Конец слота",
+    type: "datetime-local",
+  },
+  {
+    key: "cancellationReason",
+    label: "Причина отмены",
+    type: "textarea",
+  },
+  {
+    key: "lateCancellation",
+    label: "Поздняя отмена",
+    type: "select",
+    options: [
+      { value: "false", label: "Нет" },
+      { value: "true", label: "Да" },
+    ],
+  },
 ];
 
 export default function AdminBookingsPage() {

@@ -1,11 +1,10 @@
-// components/header.tsx
 "use client";
 
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { Menu, X, Scale } from "lucide-react";
+import { Menu, Scale } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { UserMenu } from "@/components/user-menu";
@@ -32,9 +31,7 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 border-b bg-white/95 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:h-16 sm:px-6">
-        {/* ── Левая часть: бургер (мобилка) + лого ── */}
         <div className="flex items-center gap-2">
-          {/* Бургер — только мобилка */}
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
             <SheetTrigger
               className={[
@@ -64,7 +61,6 @@ export function Header() {
                   </SheetTitle>
                 </SheetHeader>
 
-                {/* Мобильная навигация */}
                 <nav className="flex flex-col gap-1">
                   {NAV_LINKS.map((link) => (
                     <Link
@@ -83,7 +79,6 @@ export function Header() {
                   ))}
                 </nav>
 
-                {/* Мобильные кнопки авторизации */}
                 {status !== "loading" && !session?.user && (
                   <div className="mt-auto flex flex-col gap-2 border-t pt-4">
                     <Link
@@ -108,7 +103,6 @@ export function Header() {
             </SheetContent>
           </Sheet>
 
-          {/* Лого */}
           <Link
             href="/"
             className="text-xl font-bold tracking-tight text-[#1E2A44]"
@@ -122,7 +116,6 @@ export function Header() {
           </Link>
         </div>
 
-        {/* ── Десктопная навигация ── */}
         <nav className="hidden items-center gap-6 md:flex">
           {NAV_LINKS.map((link) => (
             <Link
@@ -140,7 +133,6 @@ export function Header() {
           ))}
         </nav>
 
-        {/* ── Правая часть ── */}
         <div className="flex items-center gap-2 sm:gap-3">
           {status === "loading" ? (
             <div className="h-9 w-9 animate-pulse rounded-full bg-slate-200 sm:w-24 sm:rounded-md" />
@@ -149,12 +141,10 @@ export function Header() {
               user={{
                 name: session.user.name,
                 email: session.user.email,
-                image: session.user.image,
                 role: session.user.role,
               }}
             />
           ) : (
-            /* Десктопные кнопки — скрыты на мобилке (есть в бургере) */
             <div className="hidden items-center gap-2 md:flex">
               <Link href="/login">
                 <Button variant="ghost" size="sm">

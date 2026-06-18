@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,7 +10,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { useAvatarUpload } from "@/hooks/use-avatar-upload";
 import {
   User,
   Briefcase,
@@ -19,7 +17,6 @@ import {
   Mail,
   Pencil,
   X,
-  Upload,
   Loader2,
 } from "lucide-react";
 import { format } from "date-fns";
@@ -48,31 +45,7 @@ type Props = {
 export function LawyerProfileClient({ user }: Props) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
-  const [avatar, setAvatar] = useState(user.image || "");
   const [savingProfile, setSavingProfile] = useState(false);
-
-  // Хук загрузки аватара
-  const { uploading, handleFileChange } = useAvatarUpload(async (url) => {
-    // После успешной загрузки файла — сохраняем URL в профиль
-    try {
-      const res = await fetch("/api/lawyer/profile", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: url }),
-      });
-
-      if (res.ok) {
-        setAvatar(url);
-        toast.success("Аватар обновлён");
-        router.refresh();
-      } else {
-        const json = await res.json();
-        toast.error(json.error || "Ошибка сохранения аватара");
-      }
-    } catch {
-      toast.error("Ошибка сохранения аватара");
-    }
-  });
 
   const {
     register,
@@ -119,60 +92,13 @@ export function LawyerProfileClient({ user }: Props) {
       {/* Карточка профиля */}
       <div className="rounded-2xl border bg-white p-6">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-          {/* Аватар */}
-          <div className="flex flex-col items-center gap-3">
-            <div className="relative size-24 overflow-hidden rounded-full bg-[#1E2A44]">
-              {avatar ? (
-                <Image
-                  src={avatar}
-                  alt={user.name}
-                  fill
-                  unoptimized={avatar.startsWith("/uploads/")}
-                  className="object-cover"
-                />
-              ) : (
-                <div className="flex h-full items-center justify-center">
-                  <User className="size-10 text-white" />
-                </div>
-              )}
-
-              {/* Оверлей при загрузке */}
-              {uploading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-                  <Loader2 className="size-6 animate-spin text-white" />
-                </div>
-              )}
+          {/* Аватар — только отображение, без загрузки */}
+          <div className="flex flex-col items-center">
+            <div className="flex size-24 items-center justify-center overflow-hidden rounded-full bg-[#1E2A44]">
+              <span className="text-3xl font-semibold text-white">
+                {user.name[0].toUpperCase()}
+              </span>
             </div>
-
-            {/* label вместо Button — избегаем button-in-button */}
-            <label
-              className={`
-                inline-flex cursor-pointer items-center gap-2 rounded-md border 
-                border-slate-200 bg-white px-3 py-1.5 text-sm font-medium 
-                text-slate-700 shadow-sm transition-colors 
-                hover:bg-slate-50 hover:text-slate-900
-                ${uploading ? "cursor-not-allowed opacity-50" : ""}
-              `}
-            >
-              {uploading ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" />
-                  Загрузка...
-                </>
-              ) : (
-                <>
-                  <Upload className="size-4" />
-                  Изменить фото
-                </>
-              )}
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif"
-                className="sr-only"
-                onChange={handleFileChange}
-                disabled={uploading}
-              />
-            </label>
           </div>
 
           {/* Данные */}

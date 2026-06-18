@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import {
   AdminTable,
   Column,
@@ -10,24 +9,6 @@ import { formatDate, formatMoney, roleName } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 
 const columns: Column[] = [
-  {
-    key: "image",
-    label: "Фото",
-    render: (val) =>
-      val ? (
-        <Image
-          src={val}
-          alt="Avatar"
-          width={40}
-          height={40}
-          className="size-10 rounded-full object-cover"
-        />
-      ) : (
-        <div className="flex size-10 items-center justify-center rounded-full bg-slate-100 text-xs text-slate-400">
-          —
-        </div>
-      ),
-  },
   { key: "name", label: "Имя" },
   { key: "email", label: "Email" },
   {
@@ -76,7 +57,6 @@ const fields: FieldConfig[] = [
   },
   { key: "balance", label: "Баланс", type: "number" },
   { key: "bio", label: "Описание", type: "textarea" },
-  { key: "image", label: "Аватар", type: "image" },
 ];
 
 export default function AdminUsersPage() {

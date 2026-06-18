@@ -1,6 +1,10 @@
 "use client";
 
-import { AdminTable, Column } from "@/components/admin/admin-table";
+import {
+  AdminTable,
+  Column,
+  FieldConfig,
+} from "@/components/admin/admin-table";
 import {
   formatDate,
   formatMoney,
@@ -51,15 +55,45 @@ const columns: Column[] = [
   },
 ];
 
+const fields: FieldConfig[] = [
+  { key: "user", label: "Пользователь" },
+  {
+    key: "type",
+    label: "Тип операции",
+    type: "select",
+    options: [
+      { value: "DEPOSIT", label: "Пополнение" },
+      { value: "WITHDRAWAL", label: "Вывод" },
+      { value: "BOOKING_PAYMENT", label: "Оплата бронирования" },
+      { value: "BOOKING_REFUND", label: "Возврат" },
+      { value: "SERVICE_PAYOUT", label: "Выплата юристу" },
+    ],
+  },
+  { key: "amount", label: "Сумма", type: "number" },
+  {
+    key: "status",
+    label: "Статус",
+    type: "select",
+    options: [
+      { value: "PENDING", label: "Ожидает" },
+      { value: "COMPLETED", label: "Завершена" },
+      { value: "CANCELED", label: "Отменена" },
+      { value: "FAILED", label: "Ошибка" },
+    ],
+  },
+  { key: "description", label: "Описание", type: "textarea" },
+];
+
 export default function AdminTransactionsPage() {
   return (
     <AdminTable
       title="Банковские Транзакции"
       apiUrl="/api/admin/transactions"
       columns={columns}
-      fields={[]}
+      fields={fields}
       canCreate={false}
-      canEdit={false}
+      canEdit={true}
+      canDelete={false}
     />
   );
 }

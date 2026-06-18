@@ -113,7 +113,12 @@ export function Header() {
             href="/"
             className="text-xl font-bold tracking-tight text-[#1E2A44]"
           >
-            Pactum
+            <div className="flex items-center gap-3">
+              <div className="flex size-8 items-center justify-center rounded-lg bg-[#1E2A44]">
+                <Scale className="size-4 text-white" />
+              </div>
+              Pactum
+            </div>
           </Link>
         </div>
 

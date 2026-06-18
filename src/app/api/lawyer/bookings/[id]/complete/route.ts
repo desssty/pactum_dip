@@ -7,6 +7,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await getCurrentUser();
+
   if (!session || session.role !== "LAWYER") {
     return NextResponse.json({ error: "Нет доступа" }, { status: 403 });
   }
@@ -15,8 +16,6 @@ export async function POST(
 
   try {
     await prisma.$transaction(async (tx) => {
-      // Читаем и блокируем строку внутри транзакции
-      // чтобы параллельный cancel не прошёл одновременно
       const booking = await tx.booking.findFirst({
         where: {
           id,
@@ -30,8 +29,6 @@ export async function POST(
         throw new Error("NOT_FOUND");
       }
 
-      // Дополнительная проверка: услуга не должна быть
-      // уже отменена или завершена на момент транзакции
       const freshBooking = await tx.booking.findUnique({
         where: { id },
         select: { status: true },
@@ -39,6 +36,14 @@ export async function POST(
 
       if (!freshBooking || freshBooking.status !== "BOOKED") {
         throw new Error("ALREADY_PROCESSED");
+      }
+
+      // Проверка времени: завершить можно только после окончания услуги
+      const now = new Date();
+      const slotEnd = new Date(booking.slotEndSnapshot);
+
+      if (now < slotEnd) {
+        throw new Error("TOO_EARLY");
       }
 
       // 1. Завершаем бронирование
@@ -81,6 +86,7 @@ export async function POST(
           { status: 404 },
         );
       }
+
       if (error.message === "ALREADY_PROCESSED") {
         return NextResponse.json(
           {
@@ -88,6 +94,16 @@ export async function POST(
               "Невозможно завершить: бронирование уже было отменено клиентом",
           },
           { status: 409 },
+        );
+      }
+
+      if (error.message === "TOO_EARLY") {
+        return NextResponse.json(
+          {
+            error:
+              "Завершить услугу можно только после окончания времени слота",
+          },
+          { status: 400 },
         );
       }
     }

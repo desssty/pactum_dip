@@ -85,6 +85,8 @@ const SORT_LABELS: Record<string, string> = {
   price_asc: "Цена по возрастанию",
   price_desc: "Цена по убыванию",
   title_asc: "По алфавиту",
+  rating_desc: "Сначала высокий рейтинг",
+  rating_asc: "Сначала низкий рейтинг",
 };
 
 export function CatalogClient({

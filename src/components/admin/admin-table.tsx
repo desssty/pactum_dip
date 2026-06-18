@@ -27,7 +27,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
-import { Pencil, Archive, Plus, Search } from "lucide-react";
+import { Pencil, Trash2, Plus, Search } from "lucide-react";
 import { ImageUpload } from "./image-upload";
 import { toast } from "sonner";
 
@@ -66,8 +66,8 @@ export function AdminTable({
   canCreate = true,
   canEdit = true,
   canDelete = true,
-  deleteLabel = "Архивировать запись?",
-  deleteDescription = "Запись будет скрыта из системы. Если у записи есть связанные данные, операция будет отклонена.",
+  deleteLabel = "Удалить запись?",
+  deleteDescription = "Это действие необратимо. Запись будет удалена навсегда.",
 }: Props) {
   const [data, setData] = useState<any[]>([]);
   const [search, setSearch] = useState("");
@@ -113,7 +113,9 @@ export function AdminTable({
     fields.forEach((f) => {
       let val = item[f.key];
       if (f.type === "datetime-local" && val) {
-        val = new Date(val).toISOString().slice(0, 16);
+        const date = new Date(val);
+        const offset = date.getTimezoneOffset() * 60000;
+        val = new Date(date.getTime() - offset).toISOString().slice(0, 16);
       }
       initial[f.key] = val?.toString() ?? "";
     });
@@ -159,14 +161,14 @@ export function AdminTable({
       const json = await res.json();
 
       if (!res.ok) {
-        setError(json.error || "Ошибка архивации");
+        setError(json.error || "Ошибка удаления");
         setDeleting(false);
         return;
       }
 
       setDeleteId(null);
       setError("");
-      toast.success("Запись архивирована");
+      toast.success("Запись удалена");
       fetchData();
     } catch {
       setError("Ошибка сети");
@@ -261,7 +263,6 @@ export function AdminTable({
     </div>
   );
 
-  // Карточка для мобильного отображения
   const renderMobileCard = (row: any) => (
     <div
       key={row.id}
@@ -300,11 +301,11 @@ export function AdminTable({
             <Button
               variant="outline"
               size="sm"
-              className="flex-1 gap-2 border-amber-200 text-amber-600 hover:bg-amber-50 hover:text-amber-700"
+              className="flex-1 gap-2 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
               onClick={() => setDeleteId(row.id)}
             >
-              <Archive className="size-4" />
-              Архив
+              <Trash2 className="size-4" />
+              Удалить
             </Button>
           )}
         </div>
@@ -339,7 +340,7 @@ export function AdminTable({
         </div>
       </div>
 
-      {/* DESKTOP TABLE — скрыта на мобилке */}
+      {/* DESKTOP TABLE */}
       <div className="hidden md:block rounded-xl border bg-white shadow-sm overflow-x-auto">
         <Table>
           <TableHeader>
@@ -398,11 +399,11 @@ export function AdminTable({
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
                             onClick={() => setDeleteId(row.id)}
-                            title="Архивировать"
+                            title="Удалить"
                           >
-                            <Archive className="size-4" />
+                            <Trash2 className="size-4" />
                           </Button>
                         )}
                       </div>
@@ -415,7 +416,7 @@ export function AdminTable({
         </Table>
       </div>
 
-      {/* MOBILE CARDS — показаны только на мобилке */}
+      {/* MOBILE CARDS */}
       <div className="md:hidden space-y-3">
         {loading ? (
           <div className="py-8 text-center text-slate-500">Загрузка...</div>
@@ -451,7 +452,7 @@ export function AdminTable({
         </DialogContent>
       </Dialog>
 
-      {/* ARCHIVE CONFIRM */}
+      {/* DELETE CONFIRM */}
       <AlertDialog
         open={deleteId !== null}
         onOpenChange={(open) => {
@@ -478,9 +479,9 @@ export function AdminTable({
             <Button
               onClick={handleDelete}
               disabled={deleting}
-              className="bg-amber-600 hover:bg-amber-700"
+              className="bg-red-600 hover:bg-red-700"
             >
-              {deleting ? "Архивация..." : "Архивировать"}
+              {deleting ? "Удаление..." : "Удалить"}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

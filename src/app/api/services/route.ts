@@ -16,7 +16,6 @@ export async function GET(req: NextRequest) {
     deletedAt: null,
   };
 
-  // Поиск по названию и описанию
   if (search) {
     where.OR = [
       { title: { contains: search, mode: "insensitive" } },
@@ -25,12 +24,10 @@ export async function GET(req: NextRequest) {
     ];
   }
 
-  // Фильтр по категории
   if (categoryId) {
     where.categoryId = categoryId;
   }
 
-  // Фильтр по цене
   if (minPrice) {
     where.price = { ...where.price, gte: parseFloat(minPrice) };
   }
@@ -38,90 +35,128 @@ export async function GET(req: NextRequest) {
     where.price = { ...where.price, lte: parseFloat(maxPrice) };
   }
 
-  // Сортировка
-  let orderBy: any;
-  switch (sort) {
-    case "price_asc":
-      orderBy = { price: "asc" };
-      break;
-    case "price_desc":
-      orderBy = { price: "desc" };
-      break;
-    case "title_asc":
-      orderBy = { title: "asc" };
-      break;
-    case "oldest":
-      orderBy = { createdAt: "asc" };
-      break;
-    case "newest":
-    default:
-      orderBy = { createdAt: "desc" };
-      break;
-  }
+  // select вынесли — он одинаковый для обоих случаев
+  const select = {
+    id: true,
+    title: true,
+    description: true,
+    price: true,
+    createdAt: true,
+    category: {
+      select: { id: true, name: true },
+    },
+    lawyer: {
+      select: { id: true, name: true, image: true },
+    },
+    ratings: {
+      select: { value: true },
+    },
+    _count: {
+      select: {
+        bookings: { where: { status: "COMPLETED" } },
+      },
+    },
+  } as const;
+
+  // Хелпер маппинга — одно место, не дублируем
+  const mapService = (service: any) => {
+    const ratings = service.ratings as { value: number }[];
+    const avgRating =
+      ratings.length > 0
+        ? ratings.reduce(
+            (sum: number, r: { value: number }) => sum + r.value,
+            0,
+          ) / ratings.length
+        : null;
+
+    return {
+      id: service.id,
+      title: service.title,
+      description: service.description,
+      price: service.price.toString(),
+      createdAt: service.createdAt,
+      category: service.category,
+      lawyer: service.lawyer,
+      avgRating: avgRating ? Math.round(avgRating * 10) / 10 : null,
+      ratingsCount: ratings.length,
+      completedCount: service._count.bookings,
+    };
+  };
 
   try {
+    // ── Сортировка по рейтингу — отдельная ветка ──────────────────────
+    if (sort === "rating_desc" || sort === "rating_asc") {
+      // Грузим все подходящие записи без пагинации
+      const allServices = await prisma.service.findMany({
+        where,
+        select,
+      });
+
+      // Считаем avgRating и сортируем в JS
+      const withAvg = allServices
+        .map((s) => {
+          const avg =
+            s.ratings.length > 0
+              ? s.ratings.reduce((sum, r) => sum + r.value, 0) /
+                s.ratings.length
+              : null;
+          return { ...s, _avg: avg };
+        })
+        .sort((a, b) => {
+          // Услуги без рейтинга всегда в конце
+          if (a._avg === null && b._avg === null) return 0;
+          if (a._avg === null) return 1;
+          if (b._avg === null) return -1;
+          return sort === "rating_desc" ? b._avg - a._avg : a._avg - b._avg;
+        });
+
+      const total = withAvg.length;
+      const totalPages = Math.ceil(total / limit);
+
+      // Пагинация вручную
+      const paginated = withAvg.slice((page - 1) * limit, page * limit);
+
+      return NextResponse.json({
+        services: paginated.map(mapService),
+        total,
+        page,
+        totalPages,
+      });
+    }
+
+    // ── Обычная сортировка — Prisma orderBy ───────────────────────────
+    let orderBy: any;
+
+    switch (sort) {
+      case "oldest":
+        orderBy = { createdAt: "asc" };
+        break;
+      case "price_asc":
+        orderBy = { price: "asc" };
+        break;
+      case "price_desc":
+        orderBy = { price: "desc" };
+        break;
+      case "title_asc":
+        orderBy = { title: "asc" };
+        break;
+      default:
+        orderBy = { createdAt: "desc" };
+    }
+
     const [services, total] = await Promise.all([
       prisma.service.findMany({
         where,
         orderBy,
         skip: (page - 1) * limit,
         take: limit,
-        select: {
-          id: true,
-          title: true,
-          description: true,
-          price: true,
-          createdAt: true,
-          category: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-          lawyer: {
-            select: {
-              id: true,
-              name: true,
-              image: true,
-            },
-          },
-          ratings: {
-            select: {
-              value: true,
-            },
-          },
-          _count: {
-            select: {
-              bookings: {
-                where: { status: "COMPLETED" },
-              },
-            },
-          },
-        },
+        select,
       }),
       prisma.service.count({ where }),
     ]);
 
-    // Добавляем средний рейтинг
-    const servicesWithRating = services.map((service) => {
-      const ratings = service.ratings;
-      const avgRating =
-        ratings.length > 0
-          ? ratings.reduce((sum, r) => sum + r.value, 0) / ratings.length
-          : null;
-
-      return {
-        ...service,
-        avgRating: avgRating ? Math.round(avgRating * 10) / 10 : null,
-        ratingsCount: ratings.length,
-        completedCount: service._count.bookings,
-        ratings: undefined,
-        _count: undefined,
-      };
-    });
-
     return NextResponse.json({
-      services: servicesWithRating,
+      services: services.map(mapService),
       total,
       page,
       totalPages: Math.ceil(total / limit),

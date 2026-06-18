@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { ru } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +45,7 @@ export default function ClientBookingsPage() {
   const [cancelId, setCancelId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState("");
   const [canceling, setCanceling] = useState(false);
+  const [now, setNow] = useState(new Date());
 
   const fetchBookings = async () => {
     setLoading(true);
@@ -63,8 +64,17 @@ export default function ClientBookingsPage() {
     fetchBookings();
   }, []);
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNow(new Date());
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   const handleCancel = async () => {
     if (!cancelId) return;
+
     setCanceling(true);
     try {
       const res = await fetch(`/api/client/bookings/${cancelId}/cancel`, {
@@ -76,6 +86,7 @@ export default function ClientBookingsPage() {
       });
 
       const json = await res.json();
+
       if (!res.ok) {
         if (res.status === 409) {
           toast.error(json.error, {
@@ -118,6 +129,9 @@ export default function ClientBookingsPage() {
         <div className="space-y-4">
           {bookings.map((b) => {
             const cfg = STATUS_CONFIG[b.status];
+            const startAt = parseISO(b.slotStartSnapshot);
+            const hasStarted = now.getTime() >= startAt.getTime();
+
             return (
               <div
                 key={b.id}
@@ -142,25 +156,30 @@ export default function ClientBookingsPage() {
                     <div className="mt-1 flex items-center gap-1.5 text-sm text-slate-500">
                       <Clock className="size-3.5" />
                       <span>
-                        {format(
-                          new Date(b.slotStartSnapshot),
-                          "d MMMM yyyy, HH:mm",
-                          { locale: ru },
-                        )}
+                        {format(startAt, "d MMMM yyyy, HH:mm", {
+                          locale: ru,
+                        })}
                         {" — "}
-                        {format(new Date(b.slotEndSnapshot), "HH:mm")}
+                        {format(parseISO(b.slotEndSnapshot), "HH:mm")}
                       </span>
                     </div>
 
                     <p className="mt-2 text-sm font-semibold text-[#1E2A44]">
                       {b.paidAmount.toLocaleString("ru-RU")} ₽
                     </p>
+
+                    {hasStarted && (
+                      <p className="mt-2 text-xs text-slate-500">
+                        Отмена недоступна: услуга уже началась
+                      </p>
+                    )}
                   </div>
 
                   <Button
                     variant="outline"
                     size="sm"
-                    className="gap-1.5 border-red-200 text-red-600 hover:bg-red-50"
+                    disabled={hasStarted}
+                    className="gap-1.5 border-red-200 text-red-600 hover:bg-red-50 disabled:border-slate-200 disabled:text-slate-400 disabled:hover:bg-transparent"
                     onClick={() => setCancelId(b.id)}
                   >
                     <XCircle className="size-4" />
@@ -173,7 +192,6 @@ export default function ClientBookingsPage() {
         </div>
       )}
 
-      {/* Диалог отмены */}
       <Dialog
         open={cancelId !== null}
         onOpenChange={(open) => {

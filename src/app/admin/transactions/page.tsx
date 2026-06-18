@@ -54,7 +54,7 @@ const columns: Column[] = [
 export default function AdminTransactionsPage() {
   return (
     <AdminTable
-      title="Транзакции"
+      title="Банковские Транзакции"
       apiUrl="/api/admin/transactions"
       columns={columns}
       fields={[]}

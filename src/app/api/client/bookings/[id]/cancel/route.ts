@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/server-auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import { isBefore, subHours } from "date-fns";
+import { subHours } from "date-fns";
 
 const cancelSchema = z.object({
   reason: z.string().max(500, "Максимум 500 символов").optional(),
@@ -13,6 +13,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await getCurrentUser();
+
   if (!session || session.role !== "CLIENT") {
     return NextResponse.json({ error: "Нет доступа" }, { status: 403 });
   }
@@ -32,20 +33,17 @@ export async function POST(
     let lateCancellation = false;
 
     await prisma.$transaction(async (tx) => {
-      // Читаем актуальный статус внутри транзакции
       const booking = await tx.booking.findFirst({
         where: {
           id,
           clientId: session.id,
         },
-        include: { slot: true },
       });
 
       if (!booking) {
         throw new Error("NOT_FOUND");
       }
 
-      // Проверяем статус — если уже не BOOKED, отказываем
       if (booking.status === "COMPLETED") {
         throw new Error("ALREADY_COMPLETED");
       }
@@ -55,7 +53,14 @@ export async function POST(
       }
 
       const now = new Date();
-      lateCancellation = isBefore(subHours(booking.slot.startAt, 2), now);
+      const startAt = new Date(booking.slotStartSnapshot);
+
+      // Нельзя отменить, если запись уже началась
+      if (now.getTime() >= startAt.getTime()) {
+        throw new Error("ALREADY_STARTED");
+      }
+
+      lateCancellation = now.getTime() >= subHours(startAt, 2).getTime();
 
       // 1. Отменяем бронирование
       await tx.booking.update({
@@ -102,6 +107,7 @@ export async function POST(
           { status: 404 },
         );
       }
+
       if (error.message === "ALREADY_COMPLETED") {
         return NextResponse.json(
           {
@@ -110,9 +116,17 @@ export async function POST(
           { status: 409 },
         );
       }
+
       if (error.message === "ALREADY_CANCELED") {
         return NextResponse.json(
           { error: "Бронирование уже отменено" },
+          { status: 409 },
+        );
+      }
+
+      if (error.message === "ALREADY_STARTED") {
+        return NextResponse.json(
+          { error: "Нельзя отменить запись после начала услуги" },
           { status: 409 },
         );
       }

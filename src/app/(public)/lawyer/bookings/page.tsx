@@ -31,11 +31,18 @@ const STATUS_CONFIG = {
 function BookingCard({
   booking,
   onComplete,
+  now,
 }: {
   booking: Booking;
   onComplete?: (id: string) => void;
+  now: Date;
 }) {
   const cfg = STATUS_CONFIG[booking.status];
+  const slotStart = parseISO(booking.slotStartSnapshot);
+  const slotEnd = parseISO(booking.slotEndSnapshot);
+
+  const canComplete =
+    booking.status === "BOOKED" && now.getTime() >= slotEnd.getTime();
 
   return (
     <div className="rounded-2xl border bg-white p-5">
@@ -63,11 +70,9 @@ function BookingCard({
           <div className="mt-2 flex items-center gap-1.5 text-sm text-slate-500">
             <Clock className="size-3.5" />
             <span>
-              {format(parseISO(booking.slotStartSnapshot), "d MMMM, HH:mm", {
-                locale: ru,
-              })}
+              {format(slotStart, "d MMMM, HH:mm", { locale: ru })}
               {" — "}
-              {format(parseISO(booking.slotEndSnapshot), "HH:mm")}
+              {format(slotEnd, "HH:mm")}
             </span>
           </div>
 
@@ -80,7 +85,7 @@ function BookingCard({
                     key={i}
                     className={cn(
                       "size-4",
-                      i < booking.rating!.value
+                      i < booking.rating.value
                         ? "fill-yellow-400 text-yellow-400"
                         : "text-slate-300",
                     )}
@@ -101,19 +106,31 @@ function BookingCard({
 
         <div className="flex flex-col items-end gap-3">
           <Badge className={cn("text-xs", cfg.className)}>{cfg.label}</Badge>
+
           <p className="font-semibold text-[#1E2A44]">
             {Number(booking.paidAmount).toLocaleString("ru-RU")} ₽
           </p>
 
           {booking.status === "BOOKED" && onComplete && (
-            <Button
-              size="sm"
-              className="gap-1.5 bg-green-600 hover:bg-green-700"
-              onClick={() => onComplete(booking.id)}
-            >
-              <CheckCircle className="size-4" />
-              Завершить
-            </Button>
+            <div className="flex flex-col items-end gap-1">
+              <Button
+                size="sm"
+                disabled={!canComplete}
+                className="gap-1.5 bg-green-600 hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500 disabled:hover:bg-slate-200 disabled:opacity-100"
+                onClick={() => {
+                  if (canComplete) onComplete(booking.id);
+                }}
+              >
+                <CheckCircle className="size-4" />
+                Завершить
+              </Button>
+
+              {!canComplete && (
+                <p className="text-xs text-slate-500">
+                  Доступно после {format(slotEnd, "HH:mm")}
+                </p>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -125,6 +142,7 @@ export default function LawyerBookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("BOOKED");
+  const [now, setNow] = useState(new Date());
 
   const fetchBookings = async (status: string) => {
     setLoading(true);
@@ -143,24 +161,34 @@ export default function LawyerBookingsPage() {
     fetchBookings(tab);
   }, [tab]);
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNow(new Date());
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   const handleComplete = async (id: string) => {
     try {
       const res = await fetch(`/api/lawyer/bookings/${id}/complete`, {
         method: "POST",
       });
       const json = await res.json();
+
       if (!res.ok) {
         if (res.status === 409) {
           toast.error(json.error, {
             description: "Обновите страницу, чтобы увидеть актуальный статус",
             duration: 5000,
           });
-          fetchBookings(tab); // сразу обновляем список
+          fetchBookings(tab);
         } else {
           toast.error(json.error || "Ошибка");
         }
         return;
       }
+
       toast.success("Услуга отмечена как выполненная");
       fetchBookings(tab);
     } catch {
@@ -196,6 +224,7 @@ export default function LawyerBookingsPage() {
                   <BookingCard
                     key={b.id}
                     booking={b}
+                    now={now}
                     onComplete={
                       status === "BOOKED" ? handleComplete : undefined
                     }
